@@ -1,0 +1,3 @@
+[run]
+source = sv
+omit = sv/test*
