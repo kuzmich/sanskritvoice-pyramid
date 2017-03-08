@@ -11,11 +11,8 @@ with open(os.path.join(here, 'CHANGES.txt')) as f:
 requires = [
     'pyramid',
     'pyramid_jinja2',
-    'pyramid_debugtoolbar',
-    'pyramid_tm',
     'SQLAlchemy',
-    'transaction',
-    'zope.sqlalchemy',
+    'psycopg2',
     'waitress',
 ]
 
@@ -23,6 +20,14 @@ tests_require = [
     'WebTest >= 1.3.1',  # py3 compat
     'pytest',
     'pytest-cov',
+]
+
+dev_require = [
+    'ipython',
+    'pyramid_ipython',
+    'pyramid_debugtoolbar',
+    'logging_tree',
+    'watchdog'
 ]
 
 setup(
@@ -45,6 +50,7 @@ setup(
     zip_safe=False,
     extras_require={
         'testing': tests_require,
+        'dev': dev_require,
     },
     install_requires=requires,
     entry_points={
