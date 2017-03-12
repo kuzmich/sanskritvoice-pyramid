@@ -14,6 +14,7 @@ requires = [
     'pyramid_mako',
     'SQLAlchemy',
     'psycopg2',
+    'deform',
     'waitress',
 ]
 
@@ -28,7 +29,7 @@ dev_require = [
     'pyramid_ipython',
     'pyramid_debugtoolbar',
     'logging_tree',
-    'watchdog'
+    # 'watchdog'
 ]
 
 setup(

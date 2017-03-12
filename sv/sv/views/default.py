@@ -1,6 +1,5 @@
 import logging
 from pyramid.view import view_config
-from ..models import MyModel
 
 logger = logging.getLogger(__name__)
 

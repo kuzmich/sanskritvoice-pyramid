@@ -1,3 +1,4 @@
+from sqlalchemy import inspect
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.schema import MetaData
 
@@ -12,5 +13,12 @@ NAMING_CONVENTION = {
     "pk": "pk_%(table_name)s"
 }
 
+
+class Base(object):
+    def to_dict(self):
+        return {c.key: getattr(self, c.key)
+                for c in inspect(self).mapper.column_attrs}
+
+
 metadata = MetaData(naming_convention=NAMING_CONVENTION)
-Base = declarative_base(metadata=metadata)
+Base = declarative_base(metadata=metadata, cls=Base)

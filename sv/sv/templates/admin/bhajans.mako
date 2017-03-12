@@ -12,7 +12,7 @@
         <tbody>
           % for b in bhajans:
             <tr>
-              <td><a href="${request.route_path('admin-edit_bhajan', bid=b.key.id())}">${b.title}</a></td>
+              <td><a href="${request.route_path('admin-edit_bhajan', bid=b.id)}">${b.title}</a></td>
             </tr>
           % endfor
         </tbody>

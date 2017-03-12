@@ -4,9 +4,14 @@
 
 <%block name="head">
   <link href="${request.static_path('sv:static/css/sb-admin-2.css')}" rel="stylesheet">
+  <link href="${request.static_path('deform:static/css/form.css')}" rel="stylesheet">
 </%block>
 
-##<%block name="body">
+<%block name="body_end">
+    <script src="${request.static_path('deform:static/scripts/jquery-2.0.3.min.js')}"></script>
+    <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+</%block>
+
     <div id="wrapper">
 
         <!-- Navigation -->
@@ -59,4 +64,3 @@
         </div> <!-- /#page-wrapper -->
 
     </div> <!-- /#wrapper -->
-##</%block>

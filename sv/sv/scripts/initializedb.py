@@ -9,11 +9,10 @@ from pyramid.paster import (
 from pyramid.scripts.common import parse_vars
 
 from ..models.meta import Base
-from ..models import (
+from ..models.session import (
     get_engine,
     get_session_factory,
 )
-from ..models import MyModel
 
 
 def usage(argv):
@@ -34,9 +33,8 @@ def main(argv=sys.argv):
     engine = get_engine(settings)
     Base.metadata.create_all(engine)
 
-    session_factory = get_session_factory(engine)
-    dbsession = session_factory()
+    # session_factory = get_session_factory(engine)
+    # dbsession = session_factory()
 
-    model = MyModel(name='one', value=1)
-    dbsession.add(model)
-    dbsession.commit()
+    # dbsession.add(model)
+    # dbsession.commit()
