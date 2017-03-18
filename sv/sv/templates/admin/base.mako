@@ -46,9 +46,9 @@
                         <li>
                           <a href="${request.route_path('admin-bhajans')}"><i class="fa fa-book fa-fw"></i> Баджаны</a>
                         </li>
-                        <li>
-                          <a href="${request.route_path('admin-records')}"><i class="fa fa-music fa-fw"></i> Записи</a>
-                        </li>
+                        ## <li>
+                        ##   <a href="${request.route_path('admin-records')}"><i class="fa fa-music fa-fw"></i> Записи</a>
+                        ## </li>
                     </ul>
                 </div> <!-- /.sidebar-collapse -->
             </div> <!-- /.navbar-static-side -->

@@ -27,6 +27,7 @@ def bhajans(request):
 def add_bhajan(request):
     db = request.dbsession
     settings = request.registry.settings
+    upload_tmp_store = forms.DeformUploadTmpStore(request)
 
     schema = forms.BhajanWithRecords().bind(request=request)
     form = deform.Form(schema, buttons=(u'добавить',))
@@ -35,7 +36,7 @@ def add_bhajan(request):
         controls = request.POST.items()
         try:
             data = form.validate(controls)
-            logger.debug('Validated data: ', data)
+            logger.debug('Validated data: %s', data)
         except deform.ValidationFailure as e:
             return dict(form=e.render(), resources=form.get_widget_resources())
 
@@ -51,38 +52,41 @@ def add_bhajan(request):
         db.flush()
 
         # перенести аудио в нужное место и запомнить его
-        # 'artist': 'Витя',
+        # data['records'] = [{'artist': '...', 'audio': {}}, {...}]
+        # 'artist': 'Витя'
         # 'audio': {
         #     'filename': 'Vitamins_Vim_Colorscheme_by_hcalves.vim',
         #     'mimetype': 'application/octet-stream',
         #     'size': -1,
         #     'uid': 'BSLAIPECML',
         #     'fp': None,
-        #     'path': '/home/alexey/dev/sv-new/uploads/tmp/BSLAIPECML.r7fyw49w'
+        #     'path': '/home/alexey/dev/sv-new/uploads/tmp/r7fyw49w'
         # }
-        seq = sa.Sequence('records_id_seq')
-        record_id = db.execute(seq)
-
         record_dir = Path(settings['sv.upload_dir'], str(bhajan.id))
-        record_dir.mkdir(parents=True, exist_ok=True)
+        record_dir.mkdir(exist_ok=True)
 
-        record_path = record_dir / '{name}{ext}'.format(
-            name=record_id,
-            ext=os.path.splitext(data['audio']['filename'])[1] or '.audio'
-        )
+        seq = sa.Sequence('records_id_seq')
 
-        os.rename(data['audio']['path'], str(record_path))
+        for rec_data in data['records']:
+            record_id = db.execute(seq)
 
-        record = Record(
-            id=record_id,
-            artist=data['artist'],
-            bhajan=bhajan,
-            path=str(record_path.relative_to(settings['sv.upload_dir']))
-        )
-        db.add(record)
+            record_path = record_dir / '{name}{ext}'.format(
+                name=record_id,
+                ext=os.path.splitext(rec_data['audio']['filename'])[1] or '.audio'
+            )
 
-        # удалить информацию об upload в DeformUploadTmpStore
-        del form['audio'].widget.tmpstore[data['audio']['uid']]
+            os.rename(rec_data['audio']['path'], str(record_path))
+
+            record = Record(
+                id=record_id,
+                artist=rec_data['artist'],
+                bhajan=bhajan,
+                path=str(record_path.relative_to(settings['sv.upload_dir']))
+            )
+            db.add(record)
+
+            # удалить информацию об upload в DeformUploadTmpStore
+            del upload_tmp_store[rec_data['audio']['uid']]
 
         db.commit()
 

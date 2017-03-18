@@ -125,9 +125,5 @@ class Records(colander.SequenceSchema):
     record = Record(title='Запись')
 
 
-# class BhajanWithRecords(Bhajan):
-#     records = Records(title='Записи')
-
-
-class BhajanWithRecords(Record, Bhajan):
-    pass
+class BhajanWithRecords(Bhajan):
+    records = Records(title='Записи')
