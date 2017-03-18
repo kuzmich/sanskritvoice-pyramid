@@ -4,8 +4,9 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    ForeignKey
 )
-from sqlalchemy.orm import configure_mappers
+from sqlalchemy.orm import configure_mappers, relationship
 
 from .meta import Base
 
@@ -21,6 +22,19 @@ class Bhajan(Base):
     category = Column(String)
     text = Column(Text)
     accords = Column(Text)
+
+    records = relationship('Record', order_by='Record.id', back_populates='bhajan')
+
+
+class Record(Base):
+    __tablename__ = 'records'
+
+    id = Column(Integer, primary_key=True)
+    artist = Column(String)
+    path = Column(String)
+    bhajan_id = Column(Integer, ForeignKey('bhajans.id'))
+
+    bhajan = relationship('Bhajan', back_populates='records')
 
 
 # run configure_mappers after defining all of the models to ensure

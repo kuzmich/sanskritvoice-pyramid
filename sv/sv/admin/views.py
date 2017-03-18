@@ -1,9 +1,17 @@
+import logging
+import os
+from pathlib import Path
+
 import deform
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
 from pyramid.view import view_config
+import sqlalchemy as sa
 
-from sv.models import Bhajan
+from sv.models import Bhajan, Record
 from . import forms
+
+
+logger = logging.getLogger(__name__)
 
 
 @view_config(route_name='admin-index', renderer='admin/bhajans.mako')
@@ -18,13 +26,20 @@ def bhajans(request):
 @view_config(route_name='admin-add_bhajan', renderer='admin/add_bhajan.mako')
 def add_bhajan(request):
     db = request.dbsession
-    form = deform.Form(forms.BhajanWithRecords(), buttons=(u'добавить',))
+    settings = request.registry.settings
+
+    schema = forms.BhajanWithRecords().bind(request=request)
+    form = deform.Form(schema, buttons=(u'добавить',))
 
     if request.method == 'POST':
+        controls = request.POST.items()
         try:
-            data = form.validate(request.POST.items())
+            data = form.validate(controls)
+            logger.debug('Validated data: ', data)
         except deform.ValidationFailure as e:
             return dict(form=e.render(), resources=form.get_widget_resources())
+
+        # TODO использовать транзакцию для добавления бажданы и ее записей
 
         bhajan = Bhajan(
             title=data['title'],
@@ -32,8 +47,43 @@ def add_bhajan(request):
             text=data['text'],
             accords=data['accords']
         )
-
         db.add(bhajan)
+        db.flush()
+
+        # перенести аудио в нужное место и запомнить его
+        # 'artist': 'Витя',
+        # 'audio': {
+        #     'filename': 'Vitamins_Vim_Colorscheme_by_hcalves.vim',
+        #     'mimetype': 'application/octet-stream',
+        #     'size': -1,
+        #     'uid': 'BSLAIPECML',
+        #     'fp': None,
+        #     'path': '/home/alexey/dev/sv-new/uploads/tmp/BSLAIPECML.r7fyw49w'
+        # }
+        seq = sa.Sequence('records_id_seq')
+        record_id = db.execute(seq)
+
+        record_dir = Path(settings['sv.upload_dir'], str(bhajan.id))
+        record_dir.mkdir(parents=True, exist_ok=True)
+
+        record_path = record_dir / '{name}{ext}'.format(
+            name=record_id,
+            ext=os.path.splitext(data['audio']['filename'])[1] or '.audio'
+        )
+
+        os.rename(data['audio']['path'], str(record_path))
+
+        record = Record(
+            id=record_id,
+            artist=data['artist'],
+            bhajan=bhajan,
+            path=str(record_path.relative_to(settings['sv.upload_dir']))
+        )
+        db.add(record)
+
+        # удалить информацию об upload в DeformUploadTmpStore
+        del form['audio'].widget.tmpstore[data['audio']['uid']]
+
         db.commit()
 
         return HTTPFound(request.route_path('admin-bhajans'))

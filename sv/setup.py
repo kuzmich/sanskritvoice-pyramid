@@ -14,7 +14,9 @@ requires = [
     'pyramid_mako',
     'SQLAlchemy',
     'psycopg2',
+    'alembic',
     'deform',
+    'pyramid_redis_sessions',
     'waitress',
 ]
 
@@ -34,8 +36,8 @@ dev_require = [
 
 setup(
     name='sv',
-    version='0.0',
-    description='sv',
+    version='0.1',
+    description='sanskritvoice.ru website',
     long_description=README + '\n\n' + CHANGES,
     classifiers=[
         'Programming Language :: Python',
@@ -43,9 +45,9 @@ setup(
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Internet :: WWW/HTTP :: WSGI :: Application',
     ],
-    author='',
-    author_email='',
-    url='',
+    author='Alexey Kuzminich',
+    author_email='akuzminich@gmail.com',
+    url='http://sanskritvoice.ru',
     keywords='web pyramid pylons',
     packages=find_packages(),
     include_package_data=True,
