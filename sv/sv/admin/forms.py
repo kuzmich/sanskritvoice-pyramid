@@ -45,12 +45,13 @@ class DeformUploadTmpStore(dict):
         self.session.changed()
 
     def __getitem__(self, name):
-        value = self.uploads[name].copy()
+        # value = self.uploads[name].copy()
+        value = self.uploads[name]
         logger.debug('Get: %s', value)
         return value
 
     def __setitem__(self, name, value):
-        value = value.copy()
+        # value = value.copy()
         logger.debug('Set: %s', value)
 
         src_file = value.pop('fp')

@@ -62,7 +62,7 @@ setup(
             'main = sv:main',
         ],
         'console_scripts': [
-            'initialize_sv_db = sv.scripts.initializedb:main',
+            'initialize_db = sv.scripts.initializedb:main',
         ],
     },
 )

@@ -9,12 +9,14 @@ from sqlalchemy.orm.session import Session
 from webtest import TestApp
 
 
-@pytest.fixture(scope='session')
-def settings():
+@pytest.fixture
+def settings(tmpdir):
     return {
         'sqlalchemy.url': 'postgresql://alexey@/test_sanskritvoice',
         'pyramid.debug_notfound': True,
-        'pyramid.debug_routematch': True
+        'pyramid.debug_routematch': True,
+        'sv.upload_dir': str(tmpdir),
+        'sv.upload_tmp_dir': str(tmpdir.mkdir('tmp'))
     }
 
 @pytest.fixture
@@ -24,12 +26,12 @@ def config(settings):
     testing.tearDown()
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def engine(settings):
     return engine_from_config(settings)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def db(engine):
     from sv.models.meta import Base
     Base.metadata.create_all(engine)
@@ -75,20 +77,22 @@ def session(engine, db):
 
 
 @pytest.fixture
-def request(session):
-    return testing.DummyRequest(dbsession=session)
-
-
-@pytest.fixture
 def client(config, session):
     config.include('pyramid_jinja2')
-    # config.include('sv.models')
+    config.include('sv.models.session')
     config.include('sv.routes')
+    config.include('sv.routes.admin', route_prefix='/dj')
     config.scan('sv')
 
     config.add_request_method(
         lambda r: session,
         'dbsession',
+        reify=True
+    )
+
+    config.add_request_method(
+        lambda r: testing.DummySession(),
+        'session',
         reify=True
     )
 

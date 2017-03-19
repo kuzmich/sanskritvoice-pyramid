@@ -33,6 +33,7 @@ def add_bhajan(request):
     form = deform.Form(schema, buttons=(u'добавить',))
 
     if request.method == 'POST':
+        logger.debug('POST: %s', request.POST)
         controls = request.POST.items()
         try:
             data = form.validate(controls)
@@ -101,13 +102,16 @@ def edit_bhajan(request):
     bid = int(request.matchdict['bid'])
 
     bhajan = db.query(Bhajan).get(bid)
-    form = deform.Form(forms.BhajanWithRecords(), buttons=(u'сохранить',))
+    schema = forms.BhajanWithRecords().bind(request=request)
+    form = deform.Form(schema, buttons=(u'сохранить',))
 
     if request.method == 'POST':
+        logger.debug('POST: %s', request.POST)
         try:
             data = form.validate(request.POST.items())
+            logger.debug('Validated data: %s', data)
         except deform.ValidationFailure as e:
-            return dict(bhajan=bhajan, form=e.render())
+            return dict(bhajan=bhajan, form=e.render(), resources=form.get_widget_resources())
 
         # db.query(Bhajan).filter_by(id=bhajan.id).update(data)
 
@@ -120,4 +124,16 @@ def edit_bhajan(request):
 
         return HTTPFound(request.route_path('admin-bhajans'))
 
-    return dict(bhajan=bhajan, form=form.render(bhajan.to_dict()))
+    appstruct = bhajan.to_dict()
+    appstruct['records'] = []
+    for record in bhajan.records:
+        record_data = {
+            'artist': record.artist,
+            'audio': {
+                'uid': '{}'.format(record.id),
+                'filename': os.path.basename(record.path),
+            }
+        }
+        appstruct['records'].append(record_data)
+
+    return dict(bhajan=bhajan, form=form.render(appstruct), resources=form.get_widget_resources())
