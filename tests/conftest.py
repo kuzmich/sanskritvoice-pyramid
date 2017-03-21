@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from mixer.backend.sqlalchemy import Mixer
 from pyramid import testing
 import pytest
 from sqlalchemy import event
@@ -97,6 +98,11 @@ def client(config, session):
     )
 
     return TestApp(config.make_wsgi_app())
+
+
+@pytest.fixture
+def mixer(session):
+    return Mixer(session=session, commit=True)
 
 
 @pytest.fixture
