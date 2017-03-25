@@ -1,4 +1,4 @@
-from mixer.main import Mixer
+from pprint import pprint
 from py._path.local import LocalPath
 from pyramid import testing
 from pyramid.request import Request
@@ -9,52 +9,147 @@ from webob.multidict import MultiDict
 from sv.models import Bhajan, Record
 
 
-def test_add_bhajan(config, session, tmpdir: LocalPath):
+@pytest.fixture
+def bhajan_factory(mixer):
+    def factory(**kwargs):
+        bhajan = mixer.blend(
+            Bhajan,
+            # title='Ом Нама Шивая',
+            category=mixer.RANDOM('shiva', 'ganesh', 'guru', 'devi', 'other'),
+            # text='Ом Нама Шивая'
+        )
+        print(bhajan)
+        return bhajan
+    return factory
+
+@pytest.fixture
+def records_factory(session, mixer, tmpdir):
+    from mixer._faker import faker
+
+    def factory(num, bhajan, **kwargs):
+        records = []
+        for i in range(num):
+            records.append(mixer.blend(Record,
+                                       artist=faker.name(),
+                                       bhajan=bhajan))
+
+        for rec in records:
+            rec.path = '{bid}/{rid}'.format(bid=bhajan.id, rid=rec.id)
+        session.commit()
+
+        print(records)
+
+        bhajan_upload_dir = tmpdir.join(str(bhajan.id))
+        bhajan_upload_dir.mkdir()
+
+        record_files = [bhajan_upload_dir.join('%s.mp3' % rec.id) for rec in records]
+        for rf, rec in zip(record_files, records):
+            rf.write_binary('record {} audio'.format(rec.id).encode())
+
+        return records, record_files
+
+    return factory
+
+
+@pytest.fixture
+def request_factory(session):
+    def factory(url, bhajan, records):
+        post_data = [
+            ('_charset_', 'UTF-8'),
+            ('__formid__', 'deform'),
+
+            # ('title', bhajan.title),
+            # ('category', bhajan.category),
+            # ('text', bhajan.text),
+            # ('accords', bhajan.accords),
+
+            # ('__start__', 'records:sequence'),
+            # ('__start__', 'record:mapping'),
+            # ('artist', 'Вася'),
+            # ('__start__', 'audio:mapping'),
+            # ('upload', b''),
+            # ('uid', str(rec2.id)),
+            # ('__end__', 'audio:mapping'),
+            # ('__end__', 'record:mapping'),
+            # ('__end__', 'records:sequence'),
+            # ('сохранить', 'сохранить')
+        ]
+
+        if isinstance(bhajan, dict):
+            post_data.extend([
+                ('title', bhajan['title']),
+                ('category', bhajan['category']),
+                ('text', bhajan['text']),
+                ('accords', bhajan.get('accords', '')),
+            ])
+        else:
+            post_data.extend([
+                ('title', bhajan.title),
+                ('category', bhajan.category),
+                ('text', bhajan.text),
+                ('accords', bhajan.accords),
+            ])
+
+        if records:
+            post_data.append(
+                ('__start__', 'records:sequence')
+            )
+            for r in records:
+                post_data.extend([
+                    ('__start__', 'record:mapping'),
+                    ('artist', r['artist']),
+                    ('__start__', 'audio:mapping'),
+                    ('upload', r['upload']),
+                    # ('uid', r['uid']),
+                    ('__end__', 'audio:mapping'),
+                    ('__end__', 'record:mapping'),
+                ])
+                if 'uid' in r:
+                    post_data.insert(-3, ('uid', r['uid']))
+            post_data.append(
+                ('__end__', 'records:sequence')
+            )
+
+        pprint(post_data)
+
+        request = Request.blank(
+            url,
+            POST=MultiDict(post_data),
+        )
+
+        request.dbsession = session
+        request.session = testing.DummySession()
+
+        request.matchdict = {}
+        if not isinstance(bhajan, dict):
+            request.matchdict['bid'] = str(bhajan.id)
+
+        registry = get_current_registry()
+        request.registry = registry
+
+        return request
+    return factory
+
+
+def test_add_bhajan(config, session, tmpdir: LocalPath, request_factory):
     from sv.admin.forms import DeformUploadTmpStore
     from sv.admin.views import add_bhajan
 
     config.add_route('admin-bhajans', '/bhajans')
 
-    request = Request.blank(
+    request = request_factory(
         '/dj/add_bhajan',
-        POST=MultiDict([
-            ('_charset_', 'UTF-8'),
-            ('__formid__', 'deform'),
-
-            ('title', 'Ом Нама Шивая'),
-            ('category', 'shiva'),
-            ('text', 'Ом Нама Шивая'),
-            ('accords', ''),
-
-            ('__start__', 'records:sequence'),
-
-            ('__start__', 'record:mapping'),
-            ('artist', 'Виктор'),
-            ('__start__', 'audio:mapping'),
-            ('upload', ('some_audio.mp3', b'record 1 audio')),
-            ('__end__', 'audio:mapping'),
-            ('__end__', 'record:mapping'),
-
-            ('__start__', 'record:mapping'),
-            ('artist', 'Вася'),
-            ('__start__', 'audio:mapping'),
-            ('upload', ('some_audio.mp3', b'record 2 audio')),
-            ('__end__', 'audio:mapping'),
-            ('__end__', 'record:mapping'),
-
-            ('__end__', 'records:sequence'),
-
-            # ('сохранить', 'сохранить')
-        ])
+        {
+            'title': 'Ом Нама Шивая',
+            'category': 'shiva',
+            'text': 'Ом Нама Шивая',
+            'accords': ''
+        },
+        [
+            {'artist': 'Виктор', 'upload': ('some_audio.mp3', b'record 1 audio')},
+            {'artist': 'Вася', 'upload': ('some_audio.mp3', b'record 2 audio')}
+        ]
     )
-    request.dbsession = session
-    request.session = testing.DummySession()
-
-    registry = get_current_registry()
-    request.registry = registry
-
-    # print(registry.settings)
-    # print(request)
 
     resp = add_bhajan(request)
     # print(resp)
@@ -86,98 +181,6 @@ def test_add_bhajan(config, session, tmpdir: LocalPath):
     assert list(tmpstore.keys()) == []
 
 
-def test_edit_bhajan(config, session, tmpdir: LocalPath, mixer: Mixer):
-    from sv.admin.forms import DeformUploadTmpStore
-    from sv.admin.views import edit_bhajan
-
-    config.add_route('admin-bhajans', '/bhajans')
-
-    bhajan = mixer.blend(
-        Bhajan,
-        title='Ом Нама Шивая',
-        category='shiva',
-        text='Ом Нама Шивая'
-    )
-    print(bhajan)
-
-    rec1 = mixer.blend(Record, artist='Виктор', bhajan=bhajan)
-    rec2 = mixer.blend(Record, artist='Вася', bhajan=bhajan)
-    records = [rec1, rec2]
-    print(records)
-
-    for rec in records:
-        rec.path = '{bid}/{rid}'.format(bid=bhajan.id, rid=rec.id)
-    session.commit()
-
-    bhajan_upload_dir = tmpdir.join(str(bhajan.id))
-    bhajan_upload_dir.mkdir()
-
-    record_files = [bhajan_upload_dir.join('%s.mp3' % rec.id) for rec in records]
-    for rf, rec in zip(record_files, records):
-        rf.write_binary('record {} audio'.format(rec.id).encode())
-
-    request = Request.blank(
-        '/dj/bhajans/%s' % bhajan.id,
-        POST=MultiDict([
-            ('_charset_', 'UTF-8'),
-            ('__formid__', 'deform'),
-
-            ('title', 'Ом Нама Шивая'),
-            ('category', 'shiva'),
-            ('text', 'Ом Нама Шивая'),
-            ('accords', ''),
-
-            ('__start__', 'records:sequence'),
-
-            ('__start__', 'record:mapping'),
-            ('artist', 'Виктор'),
-            ('__start__', 'audio:mapping'),
-            ('upload', b''),
-            ('uid', str(rec1.id)),
-            ('__end__', 'audio:mapping'),
-            ('__end__', 'record:mapping'),
-
-            ('__start__', 'record:mapping'),
-            ('artist', 'Вася'),
-            ('__start__', 'audio:mapping'),
-            ('upload', b''),
-            ('uid', str(rec2.id)),
-            ('__end__', 'audio:mapping'),
-            ('__end__', 'record:mapping'),
-
-            ('__end__', 'records:sequence'),
-
-            # ('сохранить', 'сохранить')
-        ])
-    )
-    request.dbsession = session
-    request.session = testing.DummySession()
-
-    request.matchdict = {}
-    request.matchdict['bid'] = str(bhajan.id)
-
-    registry = get_current_registry()
-    request.registry = registry
-
-    resp = edit_bhajan(request)
-    # print(resp)
-
-    # у нас по-прежнему 1 баджана и 2 записи
-    assert session.query(Bhajan).count() == 1
-    assert session.query(Record).count() == 2
-
-    # файлов записей так же 2
-    assert bhajan_upload_dir.listdir(sort=True) == record_files
-
-    # и их содержимое не изменилось
-    for rf, rec in zip(record_files, records):
-        assert rf.read_binary() == 'record {} audio'.format(rec.id).encode()
-
-    # tmpstore пустое
-    tmpstore = DeformUploadTmpStore(request)
-    assert list(tmpstore.keys()) == []
-
-
 def test_add_bhajan_func(session, client):
     from webtest.forms import Upload
     from webob.multidict import MultiDict
@@ -193,22 +196,6 @@ def test_add_bhajan_func(session, client):
             ('accords', ''),
 
             ('__start__', 'records:sequence'),
-
-            # ('__start__', 'record:mapping'),
-            # ('artist', 'АК'),
-            # ('__start__', 'audio:mapping'),
-            # ('upload', b''),
-            # ('uid', '16'),
-            # ('__end__', 'audio:mapping'),
-            # ('__end__', 'record:mapping'),
-
-            # ('__start__', 'record:mapping'),
-            # ('artist', 'Витя'),
-            # ('__start__', 'audio:mapping'),
-            # ('upload', b''),
-            # ('uid', '17'),
-            # ('__end__', 'audio:mapping'),
-            # ('__end__', 'record:mapping'),
 
             ('__start__', 'record:mapping'),
             ('artist', 'Виктор'),
@@ -230,8 +217,42 @@ def test_add_bhajan_func(session, client):
     assert session.query(Bhajan).count() == 1
     assert session.query(Record).count() == 1
 
-    # settings = resp.request.registry.settings
-    # print(settings)
-    # assert 0
+
+def test_edit_bhajan(config, session,
+                     bhajan_factory, records_factory, request_factory,
+                     tmpdir: LocalPath):
+    from sv.admin.forms import DeformUploadTmpStore
+    from sv.admin.views import edit_bhajan
+
+    config.add_route('admin-bhajans', '/bhajans')
+
+    bhajan = bhajan_factory()
+    records, files = records_factory(2, bhajan)
+
+    request = request_factory(
+        '/dj/bhajans/%s' % bhajan.id,
+        bhajan,
+        [{'artist': r.artist, 'upload': b'', 'uid': str(r.id)}
+         for r in records]
+    )
+
+    resp = edit_bhajan(request)
+    # print(resp)
+
+    # у нас по-прежнему 1 баджана и 2 записи
+    assert session.query(Bhajan).count() == 1
+    assert session.query(Record).count() == 2
+
+    # файлов записей так же 2
+    bhajan_upload_dir = tmpdir.join(str(bhajan.id))
+    assert bhajan_upload_dir.listdir(sort=True) == files
+
+    # и их содержимое не изменилось
+    for f, rec in zip(files, records):
+        assert f.read_binary() == 'record {} audio'.format(rec.id).encode()
+
+    # tmpstore пустое
+    tmpstore = DeformUploadTmpStore(request)
+    assert list(tmpstore.keys()) == []
 
 

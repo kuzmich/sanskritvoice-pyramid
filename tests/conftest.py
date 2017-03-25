@@ -102,7 +102,7 @@ def client(config, session):
 
 @pytest.fixture
 def mixer(session):
-    return Mixer(session=session, commit=True)
+    return Mixer(session=session, commit=True, locale='ru_RU')
 
 
 @pytest.fixture
