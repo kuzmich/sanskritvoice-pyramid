@@ -22,6 +22,7 @@ def bhajan_factory(mixer):
         return bhajan
     return factory
 
+
 @pytest.fixture
 def records_factory(session, mixer, tmpdir):
     from mixer._faker import faker
@@ -46,13 +47,18 @@ def records_factory(session, mixer, tmpdir):
         for rf, rec in zip(record_files, records):
             rf.write_binary('record {} audio'.format(rec.id).encode())
 
-        return records, record_files
+        if len(records) == 1:
+            return records[0], record_files[0]
+        else:
+            return records, record_files
 
     return factory
 
 
 @pytest.fixture
 def request_factory(session):
+    """Фабрика для создания запроса на добавление/редактирование баджаны"""
+
     def factory(url, bhajan, records):
         post_data = [
             ('_charset_', 'UTF-8'),
@@ -105,7 +111,7 @@ def request_factory(session):
                     ('__end__', 'record:mapping'),
                 ])
                 if 'uid' in r:
-                    post_data.insert(-3, ('uid', r['uid']))
+                    post_data.insert(-2, ('uid', r['uid']))
             post_data.append(
                 ('__end__', 'records:sequence')
             )
@@ -129,6 +135,18 @@ def request_factory(session):
 
         return request
     return factory
+
+
+def prepare_log(name, level):
+    import io
+    import logging
+
+    log = io.StringIO()
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+    logger.addHandler(logging.StreamHandler(log))
+
+    return log
 
 
 def test_add_bhajan(config, session, tmpdir: LocalPath, request_factory):
@@ -221,6 +239,7 @@ def test_add_bhajan_func(session, client):
 def test_edit_bhajan(config, session,
                      bhajan_factory, records_factory, request_factory,
                      tmpdir: LocalPath):
+    from pyramid.httpexceptions import HTTPFound
     from sv.admin.forms import DeformUploadTmpStore
     from sv.admin.views import edit_bhajan
 
@@ -236,8 +255,20 @@ def test_edit_bhajan(config, session,
          for r in records]
     )
 
+    tmpstore = DeformUploadTmpStore(request)
+    for r, f in zip(records, files):
+        tmpstore[str(r.id)] = {
+            'filename': f.basename,
+            'fp': None,
+            'mimetype': None,
+            'preview_url': None,
+            'size': None,
+            'uid': str(r.id)
+        }
+
     resp = edit_bhajan(request)
     # print(resp)
+    assert isinstance(resp, HTTPFound)
 
     # у нас по-прежнему 1 баджана и 2 записи
     assert session.query(Bhajan).count() == 1
@@ -254,5 +285,47 @@ def test_edit_bhajan(config, session,
     # tmpstore пустое
     tmpstore = DeformUploadTmpStore(request)
     assert list(tmpstore.keys()) == []
+
+
+def test_edit_bhajan_new_record(config, session,
+                     bhajan_factory, records_factory, request_factory,
+                     tmpdir: LocalPath):
+    from pyramid.httpexceptions import HTTPFound
+    from sv.admin.forms import DeformUploadTmpStore
+    from sv.admin.views import edit_bhajan
+
+    log = prepare_log('sv', 'DEBUG')
+
+    config.add_route('admin-bhajans', '/bhajans')
+
+    bhajan = bhajan_factory()
+    record, rec_file = records_factory(1, bhajan)
+
+    request = request_factory(
+        '/dj/bhajans/%s' % bhajan.id,
+        bhajan,
+        [{'artist': record.artist, 'upload': b'', 'uid': str(record.id)},
+         {'artist': 'Вася', 'upload': ('some_audio.mp3', b'record 2 audio')}]
+    )
+
+    tmpstore = DeformUploadTmpStore(request)
+    tmpstore[str(record.id)] = {
+        'filename': rec_file.basename,
+        'fp': None,
+        'mimetype': None,
+        'preview_url': None,
+        'size': None,
+        'uid': str(record.id)
+    }
+
+    resp = edit_bhajan(request)
+    # print(resp['form'])
+    assert isinstance(resp, HTTPFound)
+
+    print(log.getvalue())
+
+    # теперь у нас 1 баджана и 2 записи (1 новая)
+    assert session.query(Bhajan).count() == 1
+    assert session.query(Record).count() == 2
 
 

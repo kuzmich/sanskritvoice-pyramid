@@ -1,4 +1,5 @@
 import logging
+import os.path
 import shutil
 import tempfile
 
@@ -38,6 +39,7 @@ class DeformUploadTmpStore(dict):
         self.upload_tmp_dir = request.registry.settings['sv.upload_tmp_dir']
 
     def __contains__(self, name):
+        logger.debug("TmpStore.__contains__('%s')", name)
         return name in self.uploads
 
     def __delitem__(self, name):
@@ -47,12 +49,12 @@ class DeformUploadTmpStore(dict):
     def __getitem__(self, name):
         # value = self.uploads[name].copy()
         value = self.uploads[name]
-        logger.debug('Get: %s', value)
+        logger.debug("TmpStore.__getitem__('%s'): return %s", name, value)
         return value
 
     def __setitem__(self, name, value):
         # value = value.copy()
-        logger.debug('Set: %s', value)
+        logger.debug("TmpStore.__setitem__('%s', %r)", name, value)
 
         src_file = value.pop('fp')
         value['fp'] = None
@@ -63,12 +65,17 @@ class DeformUploadTmpStore(dict):
             with open(fd, 'wb') as dest_file:
                 shutil.copyfileobj(src_file, dest_file)
 
+            # src_file.seek(0, 2)
+            # value['size'] = src_file.tell()
+            value['size'] = os.path.getsize(tmp_file)
+
             value['path'] = tmp_file
 
         self.uploads[name] = value
         self.session.changed()
 
     def get(self, name, default=None):
+        logger.debug("TmpStore.get('%s', %r)", name, default)
         try:
             return self[name]
         except KeyError:
