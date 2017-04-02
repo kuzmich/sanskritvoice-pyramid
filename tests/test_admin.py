@@ -425,3 +425,57 @@ def test_edit_bhajan_new_file(config, session,
     assert list(tmpstore.keys()) == []
 
 
+def test_edit_bhajan_delete_record(config, session,
+                              bhajan_factory, records_factory, request_factory,
+                              upload_dir, upload_tmp_dir):
+    from pyramid.httpexceptions import HTTPFound
+    from sv.admin.forms import DeformUploadTmpStore
+    from sv.admin.views import edit_bhajan
+
+    log = prepare_log('sv', 'DEBUG')
+
+    config.add_route('admin-bhajans', '/bhajans')
+
+    bhajan = bhajan_factory()
+    records, rec_files = records_factory(2, bhajan)
+
+    request = request_factory(
+        '/dj/bhajans/%s' % bhajan.id,
+        bhajan,
+        [{'artist': records[0].artist, 'upload': b'', 'uid': str(records[0].id)}]
+    )
+
+    tmpstore = DeformUploadTmpStore(request)
+    for rec, rec_file in zip(records, rec_files):
+        tmpstore[str(rec.id)] = {
+            'filename': rec_file.basename,
+            'fp': None,
+            'mimetype': None,
+            'preview_url': None,
+            'size': None,
+            'uid': str(rec.id)
+        }
+
+    resp = edit_bhajan(request)
+    # print(resp['form'])
+    assert isinstance(resp, HTTPFound)
+
+    print(log.getvalue())
+
+    session.expire_all()
+
+    assert session.query(Bhajan).count() == 1
+    assert session.query(Record).count() == 1
+
+    bhajan_upload_dir = upload_dir.join(str(bhajan.id))
+    files = [rec_files[0]]
+    assert bhajan_upload_dir.listdir(sort=True) == sorted(files)
+    assert upload_tmp_dir.listdir() == []
+
+    assert files[0].read_binary() == 'record {} audio'.format(records[0].id).encode()
+
+    # tmpstore пустое
+    tmpstore = DeformUploadTmpStore(request)
+    assert list(tmpstore.keys()) == []
+
+

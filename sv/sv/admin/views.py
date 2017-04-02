@@ -59,8 +59,10 @@ def manage_records(records_data, bhajan, db, upload_dir, tmpstore):
 
         db.commit()
 
-    def delete():
-        pass
+    def delete(record):
+        upload_dir.joinpath(record.path).unlink()
+        db.delete(record)
+        db.commit()
 
     upload_dir = Path(upload_dir)
     records_dir = upload_dir / str(bhajan.id)
@@ -80,6 +82,11 @@ def manage_records(records_data, bhajan, db, upload_dir, tmpstore):
             edit(records_map[uid], data)
 
         # удалить информацию об upload в DeformUploadTmpStore
+        del tmpstore[uid]
+
+    # при удалении записей они не передаются в POST
+    for uid in set(records_map.keys()).difference(records_data_map.keys()):
+        delete(records_map[uid])
         del tmpstore[uid]
 
 
