@@ -43,6 +43,7 @@ class DeformUploadTmpStore(dict):
         return name in self.uploads
 
     def __delitem__(self, name):
+        logger.debug("TmpStore.__delitem__('%s')", name)
         del self.uploads[name]
         self.session.changed()
 

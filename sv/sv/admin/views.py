@@ -1,6 +1,7 @@
 import logging
 import os
 from pathlib import Path
+import shutil
 
 import deform
 from pyramid.httpexceptions import HTTPFound, HTTPNotFound
@@ -14,7 +15,7 @@ from . import forms
 logger = logging.getLogger(__name__)
 
 
-def manage_records(records_data, bhajan, db, records_dir, tmpstore):
+def manage_records(records_data, bhajan, db, upload_dir, tmpstore):
     # data['records'] = [{'artist': '...', 'audio': {}}, {...}]
     # 'artist': 'Витя'
     # 'audio': {
@@ -25,33 +26,61 @@ def manage_records(records_data, bhajan, db, records_dir, tmpstore):
     #     'fp': None,
     #     'path': '/home/alexey/dev/sv-new/uploads/tmp/r7fyw49w'
     # }
-    def add_record(data):
-        record_id = db.execute(seq)
-
-        record_path = records_dir / '{name}{ext}'.format(
+    def get_new_record_path(record_id, audio_data):
+        return records_dir / '{name}{ext}'.format(
             name=record_id,
-            ext=os.path.splitext(data['audio']['filename'])[1] or '.audio'
+            ext=os.path.splitext(audio_data['filename'])[1] or '.audio'
         )
 
-        os.rename(data['audio']['path'], str(record_path))
+    def add(data):
+        record_id = db.execute(seq)
+
+        record_path = get_new_record_path(record_id, data['audio'])
+        shutil.move(data['audio']['path'], str(record_path))
 
         record = Record(
             id=record_id,
             artist=data['artist'],
             bhajan=bhajan,
-            path=str(record_path.relative_to(records_dir.parent))
+            path=str(record_path.relative_to(upload_dir))
         )
         db.add(record)
 
-        # удалить информацию об upload в DeformUploadTmpStore
-        del tmpstore[data['audio']['uid']]
+    def edit(record, data):
+        record.artist = data['artist']
 
+        # новый файл
+        if 'path' in data['audio']:
+            upload_dir.joinpath(record.path).unlink()
+
+            record_path = get_new_record_path(record.id, data['audio'])
+            shutil.move(data['audio']['path'], str(record_path))
+            record.path = str(record_path.relative_to(upload_dir))
+
+        db.commit()
+
+    def delete():
+        pass
+
+    upload_dir = Path(upload_dir)
+    records_dir = upload_dir / str(bhajan.id)
     records_dir.mkdir(exist_ok=True)
+
     seq = sa.Sequence('records_id_seq')
 
-    for rec_data in records_data:
-        if 'path' in rec_data['audio']:
-            add_record(rec_data)
+    records_map = {str(r.id): r for r in bhajan.records}
+    records_data_map = {data['audio']['uid']: data for data in records_data}
+
+    for data in records_data:
+        uid = data['audio']['uid']
+        # uid не цифра, значит это новая запись
+        if not uid.isdigit():
+            add(data)
+        else:
+            edit(records_map[uid], data)
+
+        # удалить информацию об upload в DeformUploadTmpStore
+        del tmpstore[uid]
 
 
 @view_config(route_name='admin-index', renderer='admin/bhajans.mako')
@@ -92,8 +121,7 @@ def add_bhajan(request):
         db.add(bhajan)
         db.flush()
 
-        records_dir = Path(settings['sv.upload_dir'], str(bhajan.id))
-        manage_records(data['records'], bhajan, db, records_dir, upload_tmp_store)
+        manage_records(data['records'], bhajan, db, settings['sv.upload_dir'], upload_tmp_store)
 
         db.commit()
 
@@ -128,8 +156,7 @@ def edit_bhajan(request):
         bhajan.text = data['text']
         bhajan.accords = data['accords']
 
-        records_dir = Path(settings['sv.upload_dir'], str(bhajan.id))
-        manage_records(data['records'], bhajan, db, records_dir, upload_tmp_store)
+        manage_records(data['records'], bhajan, db, settings['sv.upload_dir'], upload_tmp_store)
 
         db.commit()
 
