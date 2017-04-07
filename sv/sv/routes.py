@@ -2,7 +2,14 @@ def includeme(config):
     config.add_static_view('static/deform', 'deform:static')
     config.add_static_view('static', 'static', cache_max_age=3600)
 
+    config.add_static_view(name='uploads', path='sv:uploads')
+    config.override_asset(to_override='sv:uploads/',
+                          override_with=config.registry.settings['sv.upload_dir'])
+
     config.add_route('home', '/')
+    config.add_route('bhajan', '/b/{bid}')
+    config.add_route('category', '/c/{category}')
+
     config.add_route('logout', '/logout')
 
 

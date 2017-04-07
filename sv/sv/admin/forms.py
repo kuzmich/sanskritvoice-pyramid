@@ -5,17 +5,9 @@ import tempfile
 
 import colander
 import deform.widget
-
+from sv.models import CATEGORIES
 
 logger = logging.getLogger(__name__)
-
-
-CATEGORIES = [('', 'Выберите категорию'),
-              ('ganesh', 'Ганеша'),
-              ('shiva', 'Шива'),
-              ('guru', 'Гуру'),
-              ('devi', 'Деви'),
-              ('other', 'Другие')]
 
 
 class DeformUploadTmpStore(dict):

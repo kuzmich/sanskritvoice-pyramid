@@ -11,6 +11,14 @@ from sqlalchemy.orm import configure_mappers, relationship
 from .meta import Base
 
 
+CATEGORIES = [('', 'Выберите категорию'),
+              ('ganesh', 'Ганеша'),
+              ('shiva', 'Шива'),
+              ('guru', 'Гуру'),
+              ('devi', 'Деви'),
+              ('other', 'Другие')]
+
+
 # import or define all models here to ensure they are attached to the
 # Base.metadata prior to any initialization routines
 
