@@ -1,0 +1,51 @@
+---
+- name: Enable postgresql apt repo
+  copy:
+    src: postgresql.list
+    dest: /etc/apt/sources.list.d/postgresql.list
+
+- name: Import the repository signing key
+  apt_key:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    id: ACCC4CF8
+
+- name: Install postgresql
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+  with_items:
+    - postgresql-9.6
+    - libpq-dev
+    - python3-psycopg2
+
+- name: Create postgresql user
+  postgresql_user:
+    name: "{{ db_user }}"
+    # password: "{{ db_password }}"
+    # role_attr_flags: CREATEDB
+  become_user: postgres
+
+- name: Check if ru_RU.UTF-8 locale is installed
+  shell: "locale -a | grep {{ db_locale }}"
+  register: ru_locale_exists
+  ignore_errors: true
+
+- name: Generate locale
+  shell: "locale-gen {{ db_locale }} && update-locale"
+  when: ru_locale_exists|failed
+
+- name: Restart PostgreSQL to read new locale
+  service:
+    name: postgresql
+    state: restarted
+  when: ru_locale_exists|failed
+
+- name: Creare postgresql db
+  postgresql_db:
+    name: "{{ db_name }}"
+    owner: "{{ db_user }}"
+    encoding: UTF-8
+    lc_collate: "{{ db_locale }}"
+    lc_ctype: "{{ db_locale }}"
+    template: template0
+  become_user: postgres
