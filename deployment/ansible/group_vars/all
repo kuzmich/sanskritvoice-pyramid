@@ -3,7 +3,13 @@
 
 ansible_python_interpreter: /usr/bin/python3
 
-db_name: sanskritvoice
-db_user: sv
-db_password:
-db_locale: ru_RU.utf8
+db:
+    name: sanskritvoice
+    user: sv
+    password:
+    locale: ru_RU.UTF-8 # the actual locale name is ru_RU.utf8
+
+app_name: sanskritvoice
+app_dir: /apps/sv
+user: sv
+wsgi_port: 6543

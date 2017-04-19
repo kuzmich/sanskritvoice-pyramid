@@ -1,0 +1,9 @@
+---
+- name: Add Redis ppa repo
+  apt_repository:
+    repo: ppa:chris-lea/redis-server
+    filename: 'redis'
+
+- name: Install Redis
+  apt:
+    name: redis-server

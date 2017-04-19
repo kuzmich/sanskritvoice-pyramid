@@ -1,0 +1,39 @@
+---
+- name: Import the repository signing key
+  apt_key:
+    url: http://nginx.org/keys/nginx_signing.key
+
+- name: Add nginx repo
+  apt_repository:
+    repo: deb http://nginx.org/packages/ubuntu/ xenial nginx
+    filename: nginx
+
+- name: Install nginx
+  apt:
+    name: nginx
+
+- name: Start nginx
+  service:
+    name: nginx
+    state: started
+
+- name: Copy proxy params
+  copy:
+    src: proxy_params
+    dest: /etc/nginx/
+
+- name: Copy app's config
+  template:
+    src: single-nginx.conf
+    dest: /etc/nginx/conf.d/sanskritvoice.conf
+
+- name: Disable default site
+  command: mv default.conf default.conf.bak
+  args:
+    chdir: /etc/nginx/conf.d
+    removes: default.conf
+
+- name: Reload nginx
+  service:
+    name: nginx
+    state: reloaded

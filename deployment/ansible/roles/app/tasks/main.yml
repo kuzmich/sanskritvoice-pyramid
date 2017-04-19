@@ -1,0 +1,80 @@
+---
+- name: Create app's user
+  user:
+    name: "{{ user }}"
+    system: yes
+    # shell: /bin/false
+    shell: /usr/sbin/nologin
+    home: "{{ app_dir }}"
+    createhome: no
+    comment: SanskritVoice app
+
+- name: Make root dir for apps
+  file:
+    path: /apps
+    state: directory
+
+- name: Make app's dirs
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ user }}"
+    group: "{{ user }}"
+  with_items:
+    - "{{ app_dir }}"
+    - "{{ app_dir }}/logs"
+    - "{{ app_dir }}/venv"
+    - "{{ app_dir }}/uploads"
+    - "{{ app_dir }}/tmp"
+    - "{{ app_dir }}/src"
+
+- name: Install pip and virtualenv
+  apt:
+    name: "{{ item }}"
+  with_items:
+    - python3-pip
+    # - python3-virtualenv
+    - build-essential
+    - python3-dev
+
+- name: Install virtualenv
+  pip:
+    name: virtualenv
+
+- name: Copy source files
+  copy:
+    src: sv-0.1-py3-none-any.whl
+    dest: "{{ app_dir }}/src"
+
+- name: Install app
+  pip:
+    name: "{{ app_dir }}/src/sv-0.1-py3-none-any.whl"
+    virtualenv: "{{ app_dir }}/venv"
+  become_user: "{{ user }}"
+
+- name: Copy settings
+  template:
+    src: production.ini
+    dest: "{{ app_dir }}/src"
+  become_user: "{{ user }}"
+
+- name: Initialize database
+  command: "{{ app_dir }}/venv/bin/initialize_db production.ini"
+  args:
+    chdir: "{{ app_dir }}/src"
+  become_user: "{{ user }}"
+
+- name: Install supervisor
+  apt:
+    name: supervisor
+
+- name: Copy supervisor config
+  template:
+    src: sanskritvoice.conf
+    dest: /etc/supervisor/conf.d/
+
+- name: Start the app
+  supervisorctl:
+    name: "{{ app_name }}"
+    state: restarted
+

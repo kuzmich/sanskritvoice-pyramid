@@ -1,23 +1,34 @@
 ---
 # This playbook deploys the whole application stack in this site.
 
-#- name: apply common configuration to all nodes
-#  hosts: all
-#  remote_user: root
-#
-#  roles:
-#    - common
-#
-#- name: configure and deploy the webservers and application code
-#  hosts: webservers
-#  remote_user: root
-#
-#  roles:
-#    - web
-
 - name: Deploy PostgreSQL and configure the database
   hosts: all
   become: true
+  gather_facts: no
 
   roles:
     - db
+
+- name: Deploy Redis
+  hosts: all
+  become: true
+  gather_facts: no
+
+  roles:
+    - redis
+
+- name: Configure and deploy the application
+  hosts: all
+  become: true
+  gather_facts: no
+
+  roles:
+    - app
+
+- name: Deploy nginx
+  hosts: all
+  become: true
+  gather_facts: no
+
+  roles:
+    - nginx

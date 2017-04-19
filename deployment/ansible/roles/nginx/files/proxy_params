@@ -1,0 +1,16 @@
+# $host: host name from the request line, or host name from the "Host" request header field,
+#     or the server name matching a request.
+#
+# $remote_addr: client address
+#
+# $scheme: request scheme, "http" or "https"
+#
+# $proxy_add_x_forwarded_for: the "X-Forwarded-For" client request header field
+#     with the $remote_addr variable appended to it, separated by a comma.
+#     If the "X-Forwarded-For" field is not present in the client request header,
+#     the $proxy_add_x_forwarded_for variable is equal to the $remote_addr variable.
+
+proxy_set_header Host $host;
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
