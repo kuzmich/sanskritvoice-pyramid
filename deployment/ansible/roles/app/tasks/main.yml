@@ -43,13 +43,20 @@
 
 - name: Copy source files
   copy:
-    src: sv-0.1-py3-none-any.whl
+    src: "{{ item }}"
     dest: "{{ app_dir }}/src"
+  with_items:
+    - sv-0.1-py3-none-any.whl
+    - deform-2.0.5.dev0-py3-none-any.whl
 
 - name: Install app
   pip:
-    name: "{{ app_dir }}/src/sv-0.1-py3-none-any.whl"
+    name: "{{ item }}"
     virtualenv: "{{ app_dir }}/venv"
+    state: latest
+  with_items:
+    - "{{ app_dir }}/src/sv-0.1-py3-none-any.whl"
+    - "{{ app_dir }}/src/deform-2.0.5.dev0-py3-none-any.whl"
   become_user: "{{ user }}"
 
 - name: Copy settings

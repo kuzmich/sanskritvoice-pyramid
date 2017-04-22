@@ -37,6 +37,7 @@ def manage_records(records_data, bhajan, db, upload_dir, tmpstore):
 
         record_path = get_new_record_path(record_id, data['audio'])
         shutil.move(data['audio']['path'], str(record_path))
+        os.chmod(str(record_path), 0o604)
 
         record = Record(
             id=record_id,
@@ -55,6 +56,7 @@ def manage_records(records_data, bhajan, db, upload_dir, tmpstore):
 
             record_path = get_new_record_path(record.id, data['audio'])
             shutil.move(data['audio']['path'], str(record_path))
+            os.chmod(str(record_path), 0o604)
             record.path = str(record_path.relative_to(upload_dir))
 
         db.commit()

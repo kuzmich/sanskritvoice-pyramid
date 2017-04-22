@@ -9,6 +9,9 @@
 #     with the $remote_addr variable appended to it, separated by a comma.
 #     If the "X-Forwarded-For" field is not present in the client request header,
 #     the $proxy_add_x_forwarded_for variable is equal to the $remote_addr variable.
+#
+# $server_port is helpful when server listen not on default port 80. This way application
+# may successfully build a URL using HTTP_HOST param.
 
 proxy_set_header Host $host;
 proxy_set_header X-Real-IP $remote_addr;
