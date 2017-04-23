@@ -65,6 +65,18 @@
     dest: "{{ app_dir }}/src"
   become_user: "{{ user }}"
 
+- name: Copy static files
+  synchronize:
+    src: "{{ playbook_dir }}/../../sv/sv/static"
+    dest: "{{ app_dir }}"
+
+- name: Change owner of static files
+  file:
+    path: "{{ app_dir }}/static"
+    owner: "{{ user }}"
+    group: "{{ user }}"
+    recurse: yes
+
 - name: Initialize database
   command: "{{ app_dir }}/venv/bin/initialize_db production.ini"
   args:
