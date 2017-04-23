@@ -65,17 +65,19 @@
     dest: "{{ app_dir }}/src"
   become_user: "{{ user }}"
 
+- name: Make dir for static files
+  file:
+    path: "{{ app_dir }}/static"
+    state: directory
+    # we could try to use ansible_env.USER also
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
 - name: Copy static files
   synchronize:
     src: "{{ playbook_dir }}/../../sv/sv/static"
     dest: "{{ app_dir }}"
-
-- name: Change owner of static files
-  file:
-    path: "{{ app_dir }}/static"
-    owner: "{{ user }}"
-    group: "{{ user }}"
-    recurse: yes
+  become: no
 
 - name: Initialize database
   command: "{{ app_dir }}/venv/bin/initialize_db production.ini"
