@@ -13,3 +13,4 @@ app_name: sanskritvoice
 app_dir: /apps/sv
 user: sv
 wsgi_port: 6543
+nginx_port: 80
