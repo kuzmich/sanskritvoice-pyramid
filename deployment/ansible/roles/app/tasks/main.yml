@@ -69,7 +69,6 @@
   file:
     path: "{{ app_dir }}/static"
     state: directory
-    # we could try to use ansible_env.USER also
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
 
