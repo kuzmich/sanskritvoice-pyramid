@@ -79,6 +79,13 @@
     dest: "{{ app_dir }}"
   become: no
 
+- name: chmod static dirs (drwxr-xr-x)
+  # command: chmod -R u=rwX,g=rX,o=rX {{ app_dir }}/static
+  command: find {{ app_dir }}/static -type d -exec chmod 755 {} +
+
+- name: chmod static files (-rw-r--r--)
+  command: find {{ app_dir }}/static -type f -exec chmod 644 {} +
+
 - name: Initialize database
   command: "{{ app_dir }}/venv/bin/initialize_db production.ini"
   args:
